@@ -1,0 +1,52 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>TCG Post Maker</title>
+<style>
+body{font-family:-apple-system,Segoe UI,sans-serif;max-width:700px;margin:0 auto;padding:16px;background:#fafafa;color:#222}
+@media(prefers-color-scheme:dark){body{background:#111;color:#eee}input,textarea{background:#222;color:#eee;border-color:#444}.card{border-color:#333}}
+h1{font-size:22px}h2{font-size:17px;margin-top:24px}
+input,textarea{font:inherit;padding:8px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box}
+textarea{width:100%}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.card{border-bottom:1px solid #ddd;padding:10px 0}.name{flex:2;min-width:150px}.usd{flex:1;min-width:90px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #888;background:transparent;color:inherit}
+button.primary{background:#1d72f3;color:#fff;border-color:#1d72f3}.hint{opacity:.7;font-size:14px}
+details{margin-top:8px}label{font-size:14px}
+</style></head><body>
+<h1>TCG Sale Post Maker</h1>
+<details><summary>Conversion</summary><div class="row" style="margin-top:8px">
+<label>USD→CAD rate <input id="rate" type="number" step="0.01" value="1.4" style="width:80px"></label>
+<label>Percent <input id="pct" type="number" value="85" style="width:70px"></label></div></details>
+<h2>Cards</h2><div id="cards"></div>
+<div class="row"><button class="primary" onclick="add()">Add card</button><button onclick="clearAll()">Clear all</button></div>
+<h2>Shipping lines</h2><textarea id="ship" rows="3">$2 pwe
+$4 bubble
+$15 tracking</textarea>
+<h2>Your post</h2><textarea id="post" rows="8" readonly></textarea>
+<div class="row"><button class="primary" id="copy" onclick="copyPost()">Copy post</button></div>
+<script>
+let cards=[];const $=id=>document.getElementById(id);
+function blank(){return{name:'',usd:'',ea:false,set:'',copies:'3'}}
+function cad(u){u=parseFloat(u);const r=parseFloat($('rate').value),p=parseFloat($('pct').value);if(isNaN(u)||isNaN(r)||isNaN(p))return null;return Math.max(1,Math.round(u*r*p/100))}
+function render(){const w=$('cards');w.innerHTML='';cards.forEach((c,i)=>{const d=document.createElement('div');d.className='card';
+d.innerHTML=`<div class="row"><input class="name" placeholder="Card name" value="${c.name.replace(/"/g,'&quot;')}"><input class="usd" type="number" step="0.01" placeholder="USD" value="${c.usd}"></div>
+<div class="row" style="margin-top:6px"><label><input type="checkbox" class="ea" ${c.ea?'checked':''}> ea</label>
+<input class="set" type="number" placeholder="Set price CAD" value="${c.set}" style="width:130px">
+<label><input type="radio" name="cp${i}" value="2" ${c.copies==='2'?'checked':''}> 2 copies</label>
+<label><input type="radio" name="cp${i}" value="3" ${c.copies==='3'?'checked':''}> 3 (set)</label>
+<span class="hint out"></span>${cards.length>1?'<button class="rm">Remove</button>':''}</div>`;
+const q=s=>d.querySelector(s);
+q('.name').oninput=e=>{c.name=e.target.value;update()};q('.usd').oninput=e=>{c.usd=e.target.value;update()};
+q('.ea').onchange=e=>{c.ea=e.target.checked;update()};q('.set').oninput=e=>{c.set=e.target.value;update()};
+d.querySelectorAll('input[type=radio]').forEach(r=>r.onchange=e=>{c.copies=e.target.value;update()});
+if(q('.rm'))q('.rm').onclick=()=>{cards.splice(i,1);render()};w.appendChild(d)});update()}
+function update(){document.querySelectorAll('.card').forEach((d,i)=>{const v=cad(cards[i].usd);d.querySelector('.out').textContent=v==null?'':'Sells for $'+v+' CAD'});
+const lines=cards.filter(c=>c.name.trim()&&cad(c.usd)!=null).map(c=>{let l=`${c.name.trim()} - $${cad(c.usd)}`;if(c.ea)l+=' ea';if(c.set.trim())l+=c.copies==='2'?` or $${c.set.trim()} for 2`:` or $${c.set.trim()} for the set`;return l});
+const t=['FS:',...lines,'',$('ship').value.trim()].join('\n');$('post').value=t;$('post').rows=Math.max(6,t.split('\n').length+1);
+localStorage.setItem('tcg',JSON.stringify({rate:$('rate').value,pct:$('pct').value,ship:$('ship').value}))}
+function add(){cards.push(blank());render()}function clearAll(){cards=[blank()];render()}
+function copyPost(){const t=$('post').value;const ok=()=>{$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy post',1500)};
+if(navigator.clipboard)navigator.clipboard.writeText(t).then(ok,()=>{$('post').select();document.execCommand('copy');ok()});else{$('post').select();document.execCommand('copy');ok()}}
+try{const s=JSON.parse(localStorage.getItem('tcg'));if(s){$('rate').value=s.rate;$('pct').value=s.pct;$('ship').value=s.ship}}catch(e){}
+['rate','pct','ship'].forEach(id=>$(id).oninput=update);clearAll();
+</script></body></html>
